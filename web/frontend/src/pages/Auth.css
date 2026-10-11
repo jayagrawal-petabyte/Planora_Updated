@@ -1,0 +1,255 @@
+.auth-container.split-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.auth-left {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .auth-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 50%;
+    background-color: var(--secondary); /* Sage green */
+    padding: 4rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+}
+
+.auth-left-text {
+  text-align: center;
+  max-width: 80%;
+  margin-top: 2rem;
+}
+
+.auth-left-text h3 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  font-family: var(--font-sans);
+  color: #1a3626;
+}
+
+.auth-left-text p {
+  font-size: 1.1rem;
+  color: white;
+  line-height: 1.6;
+}
+
+.auth-right {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  background: var(--bg-surface);
+}
+
+@media (min-width: 768px) {
+  .auth-right {
+    width: 50%;
+  }
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 400px;
+  padding: 2.5rem;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.auth-logo {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-style: italic;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+}
+
+.auth-subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 2.5rem;
+}
+
+.auth-box form {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-box .btn-primary {
+  margin-top: 1.5rem;
+  padding: 0.8rem;
+  width: 100%;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: var(--border);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.auth-divider:not(:empty)::before {
+  margin-right: .25em;
+}
+
+.auth-divider:not(:empty)::after {
+  margin-left: .25em;
+}
+
+.auth-footer {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.auth-footer a {
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+.error-message {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.required-star {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-main);
+}
+
+.password-mismatch {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+/* CSS Art */
+.css-art-container {
+  position: relative;
+  width: 250px;
+  height: 250px;
+  margin-bottom: 3rem;
+}
+
+.art-circle-bg {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 100px;
+  height: 100px;
+  background-color: #f7f4ec; /* light cream */
+  border-radius: 50%;
+}
+
+.art-dot-orange {
+  position: absolute;
+  background-color: #e59758; /* orange */
+  border-radius: 50%;
+}
+
+.art-dot-orange.left {
+  width: 12px;
+  height: 12px;
+  top: 60px;
+  left: -20px;
+}
+
+.art-dot-orange.right {
+  width: 24px;
+  height: 24px;
+  bottom: 15px;
+  right: 15px;
+}
+
+.art-card {
+  position: absolute;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.back-card {
+  width: 160px;
+  height: 220px;
+  background-color: white;
+  top: 10px;
+  right: 10px;
+}
+
+.front-card {
+  width: 130px;
+  height: 160px;
+  background-color: #1a3626; /* dark green */
+  bottom: 0px;
+  left: 10px;
+}
+
+.art-line {
+  background-color: #e2e8f0;
+  height: 6px;
+  border-radius: 3px;
+  margin-top: 20px;
+  margin-left: 20px;
+}
+
+.front-card .art-line {
+  background-color: #9eb6a6;
+}
+
+.art-line.short { width: 40%; }
+.art-line.medium { width: 60%; }
+.art-line.long { width: 80%; }

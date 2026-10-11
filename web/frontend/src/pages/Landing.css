@@ -1,0 +1,357 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700;1,800&family=Inter:wght@400;500;600;700&display=swap');
+
+.landing-container {
+  min-height: 100vh;
+  background-color: #f7f4ec; /* Beige background */
+  font-family: 'Inter', sans-serif;
+  color: #1a3626; /* Dark Green text */
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #1a3626;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.menu-btn:hover {
+  opacity: 0.9;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: #1a3626;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-title {
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+}
+
+.logo-subtitle {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.contact-btn {
+  background: transparent;
+  color: #1a3626;
+  border: 1px solid #1a3626;
+  padding: 0.6rem 1.5rem;
+  border-radius: 50px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.contact-btn:hover {
+  background: rgba(26, 54, 38, 0.05);
+}
+
+.login-btn {
+  background-color: #1a3626;
+  color: white;
+  padding: 0.6rem 1.5rem;
+  border-radius: 50px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #1a3626;
+  transition: opacity 0.2s;
+}
+
+.login-btn:hover {
+  opacity: 0.9;
+}
+
+.landing-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 2rem;
+}
+
+.hero-header-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.welcome-text {
+  color: #1a3626;
+  font-weight: 500;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-weight: 800;
+  font-size: 6rem;
+  color: #1a3626;
+  margin: 0;
+  letter-spacing: 2px;
+  line-height: 1.1;
+}
+
+/* Graphic CSS Art representing the Hero image */
+.hero-graphic {
+  position: relative;
+  width: 500px;
+  height: 250px;
+  margin-bottom: 4rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.hero-graphic::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  width: 450px;
+  height: 60px;
+  background-color: rgba(0,0,0,0.04);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.graphic-item {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+
+.graphic-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  margin-bottom: 1rem;
+}
+
+.avatar-bg-circle {
+  position: absolute;
+  top: 15px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  z-index: -1;
+  opacity: 0.4;
+}
+
+.bg-circle-orange { background-color: #f6e5c0; width: 60px; height: 60px; top: 18px; }
+.bg-circle-green { background-color: #d1fae5; top: 12px; width: 75px; height: 75px; }
+.bg-circle-blue { background-color: #e0e7ff; width: 60px; height: 60px; top: 18px; }
+
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  background-color: #1a3626;
+  border-radius: 50%;
+  margin-bottom: 5px;
+}
+
+.avatar-body {
+  width: 60px;
+  height: 40px;
+  background-color: #1a3626;
+  border-radius: 30px 30px 0 0;
+}
+
+.item-intern {
+  left: 60px;
+  bottom: 30px;
+}
+.item-intern .avatar-circle { width: 35px; height: 35px; }
+.item-intern .avatar-body { width: 55px; height: 35px; }
+
+.item-task {
+  right: 60px;
+  bottom: 30px;
+}
+.item-task .avatar-circle { width: 35px; height: 35px; }
+.item-task .avatar-body { width: 55px; height: 35px; }
+
+.item-project {
+  z-index: 3;
+  bottom: 50px;
+}
+
+.desk {
+  position: absolute;
+  bottom: -45px;
+  width: 350px;
+  height: 15px;
+  background-color: #e2dfd5;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  z-index: 4;
+}
+
+.desk::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 15px;
+  width: 10px;
+  height: 40px;
+  background-color: #e2dfd5;
+  border-radius: 5px;
+}
+
+.desk::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  top: 15px;
+  width: 10px;
+  height: 40px;
+  background-color: #e2dfd5;
+  border-radius: 5px;
+}
+
+.screen {
+  position: absolute;
+  bottom: 10px;
+  width: 150px;
+  height: 90px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 2px solid #e2dfd5;
+  border-radius: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.note-line {
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.contact-modal {
+  background: white;
+  padding: 3rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  position: relative;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #1a3626;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.close-btn:hover {
+  opacity: 1;
+}
+
+.contact-modal h3 {
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #1a3626;
+  font-family: 'Playfair Display', serif;
+}
+
+.contact-info p {
+  margin: 0.8rem 0;
+  font-size: 1rem;
+  color: #1a3626;
+}
+
+.contact-info a {
+  color: #0b4cad;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.contact-info a:hover {
+  text-decoration: underline;
+}
+
+.get-started-btn {
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 4rem;
+  }
+  .hero-graphic {
+    transform: scale(0.6);
+    margin-bottom: 0;
+  }
+}

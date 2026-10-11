@@ -1,0 +1,9 @@
+{
+  "name": "planora",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "web/*",
+    "app"
+  ]
+}

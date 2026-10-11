@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: planora-backend
+    env: node
+    buildCommand: npm install && cd packages/shared && npm run build && cd ../../web/backend && npx prisma generate && npm run build
+    startCommand: cd web/backend && npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: PORT
+        value: 5000
+
+  - type: web
+    name: planora-frontend
+    env: static
+    buildCommand: npm install && cd packages/shared && npm run build && cd ../../web/frontend && npm run build
+    staticPublishPath: ./web/frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://planora-backend.onrender.com/api
