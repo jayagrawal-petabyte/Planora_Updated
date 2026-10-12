@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, ScrollView, RefreshControl } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import { List, LayoutGrid } from 'lucide-react-native';
 import api from '../services/api';
-import type { Task, Project } from '@planora/shared';
+import type { Task, Project, TaskViewMode, TaskStatus } from '@planora/shared';
+import { KanbanBoardMobile } from '../components/KanbanBoardMobile';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -12,6 +15,24 @@ export const TasksScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [viewMode, setViewMode] = useState<TaskViewMode>('list');
+
+  useEffect(() => {
+    SecureStore.getItemAsync('planora_task_view_mode')
+      .then((saved) => {
+        if (saved === 'board' || saved === 'list') {
+          setViewMode(saved);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleViewModeChange = async (mode: TaskViewMode) => {
+    setViewMode(mode);
+    try {
+      await SecureStore.setItemAsync('planora_task_view_mode', mode);
+    } catch {}
+  };
 
   // Form states
   const [name, setName] = useState('');
@@ -107,6 +128,20 @@ export const TasksScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus): Promise<boolean> => {
+    try {
+      const res = await api.put(`/tasks/${taskId}`, { status: newStatus });
+      if (res.data.success) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? res.data.data.task : t)));
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update task status');
+      return false;
+    }
+  };
+
   const deleteTask = async (taskId: string) => {
     Alert.alert('Delete Task', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -176,6 +211,30 @@ export const TasksScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
+      {/* View Toggle Bar */}
+      <View style={styles.viewToggleBar}>
+        <View style={styles.viewToggleWrapper}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+            onPress={() => handleViewModeChange('list')}
+          >
+            <List size={14} color={viewMode === 'list' ? '#ffffff' : '#1a3626'} />
+            <Text style={[styles.toggleBtnText, viewMode === 'list' && styles.toggleBtnTextActive]}>
+              List
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, viewMode === 'board' && styles.toggleBtnActive]}
+            onPress={() => handleViewModeChange('board')}
+          >
+            <LayoutGrid size={14} color={viewMode === 'board' ? '#ffffff' : '#1a3626'} />
+            <Text style={[styles.toggleBtnText, viewMode === 'board' && styles.toggleBtnTextActive]}>
+              Board
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <View style={{ flexDirection: 'row', padding: 10, backgroundColor: 'white', borderBottomWidth: 1, borderColor: '#eee' }}>
         <TextInput
           style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 10 }]}
@@ -197,6 +256,13 @@ export const TasksScreen = ({ navigation }: any) => {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#1a3626" />
         </View>
+      ) : viewMode === 'board' ? (
+        <KanbanBoardMobile
+          tasks={tasks}
+          onUpdateTaskStatus={handleUpdateTaskStatus}
+          onDeleteTask={deleteTask}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        />
       ) : (
         <FlatList
           data={tasks}
@@ -477,5 +543,38 @@ const styles = StyleSheet.create({
   btnActionTextDelete: {
     fontSize: 12,
     color: '#e74c3c',
+  },
+  viewToggleBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: '#ffffff'
+  },
+  viewToggleWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 3
+  },
+  toggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6
+  },
+  toggleBtnActive: {
+    backgroundColor: '#1a3626'
+  },
+  toggleBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1a3626'
+  },
+  toggleBtnTextActive: {
+    color: '#ffffff'
   }
 });

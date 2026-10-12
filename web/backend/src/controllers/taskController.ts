@@ -105,7 +105,14 @@ export const createTask = async (req: Request, res: Response, next: NextFunction
       }
     });
 
-    await logAudit('CREATE_TASK', 'TASK', task.id, userId, task);
+    await logAudit('CREATE_TASK', 'TASK', task.id, userId, {
+      projectId: task.projectId,
+      entityTitle: task.name,
+      name: task.name,
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? task.dueDate.toISOString() : null
+    });
 
     res.status(201).json({ success: true, data: { task } });
   } catch (error) {
@@ -125,12 +132,43 @@ export const updateTask = async (req: Request, res: Response, next: NextFunction
       return res.status(404).json({ success: false, error: { message: "Task not found" } });
     }
 
+    const changedFields: Record<string, { old?: unknown; new?: unknown }> = {};
+    if (validatedData.name !== undefined && validatedData.name !== task.name) {
+      changedFields.name = { old: task.name, new: validatedData.name };
+    }
+    if (validatedData.status !== undefined && validatedData.status !== task.status) {
+      changedFields.status = { old: task.status, new: validatedData.status };
+    }
+    if (validatedData.priority !== undefined && validatedData.priority !== task.priority) {
+      changedFields.priority = { old: task.priority, new: validatedData.priority };
+    }
+    if (validatedData.description !== undefined && validatedData.description !== task.description) {
+      changedFields.description = { old: task.description, new: validatedData.description };
+    }
+    if (validatedData.dueDate !== undefined) {
+      const oldDue = task.dueDate ? new Date(task.dueDate).toISOString() : null;
+      const newDue = validatedData.dueDate ? new Date(validatedData.dueDate).toISOString() : null;
+      if (oldDue !== newDue) {
+        changedFields.dueDate = { old: oldDue, new: newDue };
+      }
+    }
+
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: validatedData
     });
 
-    await logAudit('UPDATE_TASK', 'TASK', taskId, userId, validatedData);
+    await logAudit('UPDATE_TASK', 'TASK', taskId, userId, {
+      projectId: task.projectId,
+      entityTitle: updatedTask.name || task.name,
+      changedFields,
+      previousValues: {
+        name: task.name,
+        status: task.status,
+        priority: task.priority
+      },
+      newValues: validatedData
+    });
 
     res.json({ success: true, data: { task: updatedTask } });
   } catch (error) {
@@ -149,14 +187,28 @@ export const deleteTask = async (req: Request, res: Response, next: NextFunction
       return res.status(404).json({ success: false, error: { message: "Task not found" } });
     }
 
+    const taskSnapshot = {
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      priority: task.priority,
+      projectId: task.projectId
+    };
+
     await prisma.task.delete({
       where: { id: taskId }
     });
 
-    await logAudit('DELETE_TASK', 'TASK', taskId, userId, { deletedAt: new Date() });
+    await logAudit('DELETE_TASK', 'TASK', taskId, userId, {
+      projectId: task.projectId,
+      entityTitle: task.name,
+      deletedAt: new Date().toISOString(),
+      taskSnapshot
+    });
 
     res.json({ success: true, data: { message: "Task deleted successfully" } });
   } catch (error) {
     next(error);
   }
 };
+

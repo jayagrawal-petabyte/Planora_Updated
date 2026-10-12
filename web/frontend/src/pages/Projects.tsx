@@ -275,7 +275,11 @@ export const Projects = () => {
                     </form>
                   ) : (
                     <>
-                      <h3><Link to={`/projects/${project.id}`}>{project.name}</Link></h3>
+                      <h3>
+                        <Link to={`/projects/${project.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                          {project.name}
+                        </Link>
+                      </h3>
                       <p>{project.description}</p>
                       <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem' }}>
                         Created: {new Date(project.createdAt).toLocaleDateString()}
@@ -286,6 +290,13 @@ export const Projects = () => {
                         {project.status.replace('_', ' ')}
                       </span>
                       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                        <Link 
+                          to={`/projects/${project.id}`} 
+                          className="btn-secondary" 
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                        >
+                          View
+                        </Link>
                         <button onClick={() => startEdit(project)} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>Edit</button>
                         <button onClick={() => handleDelete(project.id)} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>Delete</button>
                       </div>

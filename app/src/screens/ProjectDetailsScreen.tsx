@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import api from '../services/api';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
-
-import { Task } from '@planora/shared';
+import { List, LayoutGrid, CheckSquare, History } from 'lucide-react-native';
+import type { Task, TaskViewMode, TaskStatus } from '@planora/shared';
+import { KanbanBoardMobile } from '../components/KanbanBoardMobile';
+import { ActivityTimelineMobile } from '../components/ActivityTimelineMobile';
 
 export const ProjectDetailsScreen = ({ route }: any) => {
   const { id: projectId, name: projectName } = route.params;
@@ -14,6 +16,29 @@ export const ProjectDetailsScreen = ({ route }: any) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+
+  // Top Tab: 'tasks' | 'activity'
+  const [activeTab, setActiveTab] = useState<'tasks' | 'activity'>('tasks');
+
+  // View Mode: 'list' | 'board'
+  const [viewMode, setViewMode] = useState<TaskViewMode>('list');
+
+  useEffect(() => {
+    SecureStore.getItemAsync('planora_task_view_mode')
+      .then((saved) => {
+        if (saved === 'board' || saved === 'list') {
+          setViewMode(saved);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleViewModeChange = async (mode: TaskViewMode) => {
+    setViewMode(mode);
+    try {
+      await SecureStore.setItemAsync('planora_task_view_mode', mode);
+    } catch {}
+  };
 
   // Search & Filter
   const [search, setSearch] = useState('');
@@ -111,13 +136,43 @@ export const ProjectDetailsScreen = ({ route }: any) => {
     }
   };
 
+  const isOffline = !!error && (error.includes('Offline mode') || error.includes('Network error'));
+
   const toggleStatus = async (task: Task) => {
+    if (isOffline) {
+      Alert.alert(
+        'Offline Mode',
+        'Status changes cannot be saved while offline. Please connect to the internet to update tasks.'
+      );
+      return;
+    }
     const newStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
     try {
       await api.put(`/tasks/${task.id}`, { status: newStatus });
       setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    } catch (err) {
-      Alert.alert('Error', 'Failed to update task status');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update task status');
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus): Promise<boolean> => {
+    if (isOffline) {
+      Alert.alert(
+        'Offline Mode',
+        'Status changes cannot be saved while offline. Please connect to the internet to update tasks.'
+      );
+      return false;
+    }
+    try {
+      const res = await api.put(`/tasks/${taskId}`, { status: newStatus });
+      if (res.data.success) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? res.data.data.task : t)));
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update task status');
+      return false;
     }
   };
 
@@ -225,93 +280,159 @@ export const ProjectDetailsScreen = ({ route }: any) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchBar}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search..."
-          value={search}
-          onChangeText={setSearch}
-        />
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
-          <Text style={styles.addBtnText}>{showForm ? 'Cancel' : 'Add'}</Text>
+      {/* Top Tab Bar: Tasks vs Activity */}
+      <View style={styles.topTabBar}>
+        <TouchableOpacity
+          style={[styles.topTabBtn, activeTab === 'tasks' && styles.topTabBtnActive]}
+          onPress={() => setActiveTab('tasks')}
+        >
+          <CheckSquare size={16} color={activeTab === 'tasks' ? '#1a3626' : '#64748b'} />
+          <Text style={[styles.topTabText, activeTab === 'tasks' && styles.topTabTextActive]}>
+            Tasks
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.topTabBtn, activeTab === 'activity' && styles.topTabBtnActive]}
+          onPress={() => setActiveTab('activity')}
+        >
+          <History size={16} color={activeTab === 'activity' ? '#1a3626' : '#64748b'} />
+          <Text style={[styles.topTabText, activeTab === 'activity' && styles.topTabTextActive]}>
+            Activity History
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={{ padding: 10, backgroundColor: 'white', borderBottomWidth: 1, borderColor: '#eee' }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 5 }}>
-          <TouchableOpacity onPress={() => { setStatusFilter(''); setPage(1); }} style={[styles.filterBadge, statusFilter === '' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, statusFilter === '' && {color: 'white'}]}>All Status</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setStatusFilter('PENDING'); setPage(1); }} style={[styles.filterBadge, statusFilter === 'PENDING' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, statusFilter === 'PENDING' && {color: 'white'}]}>Pending</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setStatusFilter('IN_PROGRESS'); setPage(1); }} style={[styles.filterBadge, statusFilter === 'IN_PROGRESS' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, statusFilter === 'IN_PROGRESS' && {color: 'white'}]}>In Progress</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setStatusFilter('COMPLETED'); setPage(1); }} style={[styles.filterBadge, statusFilter === 'COMPLETED' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, statusFilter === 'COMPLETED' && {color: 'white'}]}>Completed</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-          <TouchableOpacity onPress={() => { setPriorityFilter(''); setPage(1); }} style={[styles.filterBadge, priorityFilter === '' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, priorityFilter === '' && {color: 'white'}]}>All Priority</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setPriorityFilter('LOW'); setPage(1); }} style={[styles.filterBadge, priorityFilter === 'LOW' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, priorityFilter === 'LOW' && {color: 'white'}]}>Low</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setPriorityFilter('MEDIUM'); setPage(1); }} style={[styles.filterBadge, priorityFilter === 'MEDIUM' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, priorityFilter === 'MEDIUM' && {color: 'white'}]}>Medium</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setPriorityFilter('HIGH'); setPage(1); }} style={[styles.filterBadge, priorityFilter === 'HIGH' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, priorityFilter === 'HIGH' && {color: 'white'}]}>High</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {showForm && (
-        <View style={styles.createForm}>
-          <TextInput
-            style={styles.input}
-            placeholder="Task Name"
-            value={taskName}
-            onChangeText={setTaskName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Description"
-            value={taskDesc}
-            onChangeText={setTaskDesc}
-          />
-          <TouchableOpacity style={styles.submitBtn} onPress={handleCreateTask} disabled={creating}>
-            {creating ? <ActivityIndicator color="white" /> : <Text style={styles.submitBtnText}>Save Task</Text>}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      
-      {loading ? (
-        <ActivityIndicator size="large" color="#1a3626" style={{ marginTop: 20 }} />
-      ) : (
-        <FlatList
-          data={tasks}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
+      {activeTab === 'activity' ? (
+        <ScrollView
+          contentContainerStyle={{ padding: 12, paddingBottom: 30 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={<Text style={styles.empty}>No tasks found.</Text>}
-          ListFooterComponent={
-            <View style={{ flexDirection: 'row', justifyContent: 'center', padding: 20, gap: 15, alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={[styles.btn, {backgroundColor: '#1a3626'}, page === 1 && { opacity: 0.5 }]}>
-                <Text style={{color:'white'}}>Prev</Text>
+        >
+          <ActivityTimelineMobile projectId={projectId} isOffline={isOffline} />
+        </ScrollView>
+      ) : (
+        <>
+          {/* View Toggle Bar */}
+          <View style={styles.viewToggleBar}>
+            <View style={styles.viewToggleWrapper}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+                onPress={() => handleViewModeChange('list')}
+              >
+                <List size={13} color={viewMode === 'list' ? '#ffffff' : '#1a3626'} />
+                <Text style={[styles.toggleBtnText, viewMode === 'list' && styles.toggleBtnTextActive]}>
+                  List
+                </Text>
               </TouchableOpacity>
-              <Text>Page {page} of {totalPages}</Text>
-              <TouchableOpacity onPress={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} style={[styles.btn, {backgroundColor: '#1a3626'}, (page === totalPages || totalPages === 0) && { opacity: 0.5 }]}>
-                <Text style={{color:'white'}}>Next</Text>
+              <TouchableOpacity
+                style={[styles.toggleBtn, viewMode === 'board' && styles.toggleBtnActive]}
+                onPress={() => handleViewModeChange('board')}
+              >
+                <LayoutGrid size={13} color={viewMode === 'board' ? '#ffffff' : '#1a3626'} />
+                <Text style={[styles.toggleBtnText, viewMode === 'board' && styles.toggleBtnTextActive]}>
+                  Board
+                </Text>
               </TouchableOpacity>
             </View>
-          }
-        />
+          </View>
+
+          <View style={styles.searchBar}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search..."
+              value={search}
+              onChangeText={setSearch}
+            />
+            <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
+              <Text style={styles.addBtnText}>{showForm ? 'Cancel' : 'Add'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ padding: 10, backgroundColor: 'white', borderBottomWidth: 1, borderColor: '#eee' }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 5 }}>
+              <TouchableOpacity onPress={() => { setStatusFilter(''); setPage(1); }} style={[styles.filterBadge, statusFilter === '' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, statusFilter === '' && {color: 'white'}]}>All Status</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setStatusFilter('PENDING'); setPage(1); }} style={[styles.filterBadge, statusFilter === 'PENDING' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, statusFilter === 'PENDING' && {color: 'white'}]}>Pending</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setStatusFilter('IN_PROGRESS'); setPage(1); }} style={[styles.filterBadge, statusFilter === 'IN_PROGRESS' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, statusFilter === 'IN_PROGRESS' && {color: 'white'}]}>In Progress</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setStatusFilter('COMPLETED'); setPage(1); }} style={[styles.filterBadge, statusFilter === 'COMPLETED' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, statusFilter === 'COMPLETED' && {color: 'white'}]}>Completed</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+              <TouchableOpacity onPress={() => { setPriorityFilter(''); setPage(1); }} style={[styles.filterBadge, priorityFilter === '' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, priorityFilter === '' && {color: 'white'}]}>All Priority</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setPriorityFilter('LOW'); setPage(1); }} style={[styles.filterBadge, priorityFilter === 'LOW' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, priorityFilter === 'LOW' && {color: 'white'}]}>Low</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setPriorityFilter('MEDIUM'); setPage(1); }} style={[styles.filterBadge, priorityFilter === 'MEDIUM' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, priorityFilter === 'MEDIUM' && {color: 'white'}]}>Medium</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setPriorityFilter('HIGH'); setPage(1); }} style={[styles.filterBadge, priorityFilter === 'HIGH' && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, priorityFilter === 'HIGH' && {color: 'white'}]}>High</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {showForm && (
+            <View style={styles.createForm}>
+              <TextInput
+                style={styles.input}
+                placeholder="Task Name"
+                value={taskName}
+                onChangeText={setTaskName}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Description"
+                value={taskDesc}
+                onChangeText={setTaskDesc}
+              />
+              <TouchableOpacity style={styles.submitBtn} onPress={handleCreateTask} disabled={creating}>
+                {creating ? <ActivityIndicator color="white" /> : <Text style={styles.submitBtnText}>Save Task</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          
+          {loading ? (
+            <ActivityIndicator size="large" color="#1a3626" style={{ marginTop: 20 }} />
+          ) : viewMode === 'board' ? (
+            <KanbanBoardMobile
+              tasks={tasks}
+              onUpdateTaskStatus={handleUpdateTaskStatus}
+              onEditTask={startEdit}
+              onDeleteTask={deleteTask}
+              isOffline={isOffline}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            />
+          ) : (
+            <FlatList
+              data={tasks}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              ListEmptyComponent={<Text style={styles.empty}>No tasks found.</Text>}
+              ListFooterComponent={
+                <View style={{ flexDirection: 'row', justifyContent: 'center', padding: 20, gap: 15, alignItems: 'center' }}>
+                  <TouchableOpacity onPress={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={[styles.btn, {backgroundColor: '#1a3626'}, page === 1 && { opacity: 0.5 }]}>
+                    <Text style={{color:'white'}}>Prev</Text>
+                  </TouchableOpacity>
+                  <Text>Page {page} of {totalPages}</Text>
+                  <TouchableOpacity onPress={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} style={[styles.btn, {backgroundColor: '#1a3626'}, (page === totalPages || totalPages === 0) && { opacity: 0.5 }]}>
+                    <Text style={{color:'white'}}>Next</Text>
+                  </TouchableOpacity>
+                </View>
+              }
+            />
+          )}
+        </>
       )}
     </View>
   );
@@ -352,5 +473,66 @@ const styles = StyleSheet.create({
   btnText: { color: 'white', fontWeight: 'bold' },
   btnTextSecondary: { color: '#1a3626', fontWeight: 'bold' },
   error: { color: 'red', padding: 20, textAlign: 'center' },
-  empty: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 14 }
+  empty: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 14 },
+  topTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0'
+  },
+  topTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent'
+  },
+  topTabBtnActive: {
+    borderBottomColor: '#1a3626'
+  },
+  topTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  topTabTextActive: {
+    color: '#1a3626',
+    fontWeight: '700'
+  },
+  viewToggleBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: '#ffffff'
+  },
+  viewToggleWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 3
+  },
+  toggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 6
+  },
+  toggleBtnActive: {
+    backgroundColor: '#1a3626'
+  },
+  toggleBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1a3626'
+  },
+  toggleBtnTextActive: {
+    color: '#ffffff'
+  }
 });

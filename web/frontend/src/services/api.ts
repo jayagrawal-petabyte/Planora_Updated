@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+let envApiUrl: string | undefined;
+try {
+  // @ts-ignore
+  envApiUrl = (new Function('try { return import.meta.env.VITE_API_URL; } catch { return undefined; }'))();
+} catch {
+  envApiUrl = undefined;
+}
+
 // @ts-ignore
-const API_URL = (typeof process !== 'undefined' ? process.env.VITE_API_URL : (import.meta.env && import.meta.env.VITE_API_URL)) || 'http://localhost:5000/api';
+const API_URL = envApiUrl || (typeof process !== 'undefined' ? process.env?.VITE_API_URL : undefined) || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
