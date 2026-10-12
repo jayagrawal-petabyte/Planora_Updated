@@ -39,6 +39,45 @@ All protected routes require an `Authorization: Bearer <token>` header.
 ### `GET /api/projects/:id`
 - **Success**: `200 OK` with `{ success: true, data: { project } }`
 
+### `GET /api/projects/:id/activity`
+- **Authentication**: Required (requesting user must own project `:id`)
+- **Query Params**: `page` (default `1`), `limit` (default `10`, max `50`)
+- **Success**: `200 OK` with paginated timeline items:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "activities": [
+        {
+          "id": "e2f1837c-d760-4447-975c-30c1eefdb72e",
+          "actorId": "58efce56-cb8e-4a69-8fcb-240fa8be4ad7",
+          "actorName": "Alex Johnson",
+          "action": "UPDATE_TASK",
+          "entityType": "TASK",
+          "entityId": "38da4c86-c4d6-4e5a-8b83-a4efc828fe27",
+          "entityTitle": "Design Landing Hero",
+          "projectId": "8b021e90-c0b9-470a-af96-a831e5f8ee4d",
+          "timestamp": "2026-10-11T19:30:00.000Z",
+          "summary": "You moved \"Design Landing Hero\" from Pending to In Progress",
+          "changedFields": {
+            "status": {
+              "old": "PENDING",
+              "new": "IN_PROGRESS"
+            }
+          }
+        }
+      ],
+      "pagination": {
+        "total": 1,
+        "page": 1,
+        "limit": 10,
+        "totalPages": 1
+      }
+    }
+  }
+  ```
+- **Errors**: `404 Not Found` if project does not exist or user does not own it.
+
 ### `POST /api/projects`
 - **Body**: `{ name, description?, status?, startDate?, endDate? }`
 - **Success**: `201 Created` with `{ success: true, data: { project } }`

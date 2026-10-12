@@ -57,3 +57,55 @@ export interface Task {
   dueDate?: Date | string;
   createdAt: Date | string;
 }
+
+// View Mode
+export type TaskViewMode = 'list' | 'board';
+
+// Activity Feed
+export const activityEntityTypeEnum = z.enum(['PROJECT', 'TASK']);
+export type ActivityEntityType = z.infer<typeof activityEntityTypeEnum>;
+
+export const changedValueSchema = z.object({
+  old: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
+  new: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+});
+export type ChangedValue = z.infer<typeof changedValueSchema>;
+
+export const activityItemSchema = z.object({
+  id: z.string(),
+  actorId: z.string(),
+  actorName: z.string(),
+  action: z.string(),
+  entityType: activityEntityTypeEnum,
+  entityId: z.string(),
+  entityTitle: z.string(),
+  projectId: z.string().optional(),
+  timestamp: z.string(),
+  summary: z.string(),
+  changedFields: z.record(z.string(), changedValueSchema).optional()
+});
+export type ActivityItem = z.infer<typeof activityItemSchema>;
+
+export const activityPaginationSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  limit: z.number(),
+  totalPages: z.number()
+});
+export type ActivityPagination = z.infer<typeof activityPaginationSchema>;
+
+export const activityResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.object({
+    activities: z.array(activityItemSchema),
+    pagination: activityPaginationSchema
+  })
+});
+export type ActivityResponse = z.infer<typeof activityResponseSchema>;
+
+export const activityQuerySchema = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional()
+});
+export type ActivityQuery = z.infer<typeof activityQuerySchema>;
+

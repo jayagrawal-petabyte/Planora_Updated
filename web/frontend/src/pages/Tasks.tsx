@@ -4,18 +4,30 @@ import api from '../services/api';
 
 import { Sidebar } from '../components/Sidebar';
 import { Modal } from '../components/Modal';
+import { KanbanBoard } from '../components/KanbanBoard';
 import DatePicker from 'react-datepicker';
-import { Calendar } from 'lucide-react';
+import { Calendar, LayoutGrid, List } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
 import './Dashboard.css';
 
-import type { Task, Project } from '@planora/shared';
+import type { Task, Project, TaskViewMode, TaskStatus } from '@planora/shared';
 
 export const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // View preference: 'list' or 'board'
+  const [viewMode, setViewMode] = useState<TaskViewMode>(() => {
+    const saved = localStorage.getItem('planora_task_view_mode');
+    return saved === 'board' ? 'board' : 'list';
+  });
+
+  const handleViewModeChange = (mode: TaskViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('planora_task_view_mode', mode);
+  };
 
   // Search & Filters
   const [search, setSearch] = useState('');
@@ -71,7 +83,7 @@ export const Tasks = () => {
           setProjectId(projectsRes.data.data.projects[0].id);
         }
       }
-    } catch (err: any) {
+    } catch {
       setError('Failed to load data');
     } finally {
       setLoading(false);
@@ -86,7 +98,15 @@ export const Tasks = () => {
     }
     
     try {
-      const payload: any = { name, description, status, priority, projectId };
+      const payload: {
+        name: string;
+        description: string;
+        status: string;
+        priority: string;
+        projectId: string;
+        dueDate?: string;
+      } = { name, description, status, priority, projectId };
+
       if (dueDate) {
         payload.dueDate = new Date(dueDate).toISOString();
       }
@@ -102,8 +122,21 @@ export const Tasks = () => {
         setStatus('PENDING');
         setPriority('MEDIUM');
       }
-    } catch (err) {
+    } catch {
       alert('Failed to create task');
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus): Promise<boolean> => {
+    try {
+      const res = await api.put(`/tasks/${taskId}`, { status: newStatus });
+      if (res.data.success) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? res.data.data.task : t)));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   };
 
@@ -112,7 +145,7 @@ export const Tasks = () => {
     try {
       await api.delete(`/tasks/${taskId}`);
       setTasks(tasks.filter(t => t.id !== taskId));
-    } catch (err) {
+    } catch {
       alert('Failed to delete task');
     }
   };
@@ -138,7 +171,7 @@ export const Tasks = () => {
         setTasks(tasks.map(t => t.id === taskId ? res.data.data.task : t));
         setEditingTaskId(null);
       }
-    } catch (err) {
+    } catch {
       alert('Failed to update task');
     }
   };
@@ -148,11 +181,33 @@ export const Tasks = () => {
       <Sidebar />
 
       <main className="main-content">
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1>Tasks</h1>
-          <button onClick={() => setShowCreate(true)} className="btn-primary" style={{ width: 'auto', marginTop: 0 }}>
-            + New Task
-          </button>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1>Tasks</h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div className="view-toggle-wrap" role="group" aria-label="Task view mode">
+              <button
+                type="button"
+                className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('list')}
+                data-testid="view-toggle-list"
+              >
+                <List size={16} /> List
+              </button>
+              <button
+                type="button"
+                className={`view-toggle-btn ${viewMode === 'board' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('board')}
+                data-testid="view-toggle-board"
+              >
+                <LayoutGrid size={16} /> Board
+              </button>
+            </div>
+            <button onClick={() => setShowCreate(true)} className="btn-primary" style={{ width: 'auto', marginTop: 0 }}>
+              + New Task
+            </button>
+          </div>
         </header>
 
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -260,78 +315,90 @@ export const Tasks = () => {
         {loading && <p>Loading tasks...</p>}
         {error && <p className="error-message">{error}</p>}
 
-        {!loading && !error && (
-          <div className="stats-grid">
-            {tasks.length === 0 ? (
-              <p>No tasks found.</p>
-            ) : (
-              tasks.map(task => (
-                <div key={task.id} className="stat-card">
-                  {editingTaskId === task.id ? (
-                    <form onSubmit={(e) => handleEditTaskSubmit(e, task.id)}>
-                      <input type="text" value={editTaskName} onChange={e => setEditTaskName(e.target.value)} required style={{width: '100%', marginBottom: '0.5rem', padding: '0.5rem'}} />
-                      <input type="text" value={editTaskDesc} onChange={e => setEditTaskDesc(e.target.value)} style={{width: '100%', marginBottom: '0.5rem', padding: '0.5rem'}} />
-                      <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
-                        <select value={editTaskStatus} onChange={e => setEditTaskStatus(e.target.value)} style={{flex: 1, padding: '0.5rem'}}>
-                          <option value="PENDING">Pending</option>
-                          <option value="IN_PROGRESS">In Progress</option>
-                          <option value="COMPLETED">Completed</option>
-                        </select>
-                        <select value={editTaskPriority} onChange={e => setEditTaskPriority(e.target.value)} style={{flex: 1, padding: '0.5rem'}}>
-                          <option value="LOW">Low</option>
-                          <option value="MEDIUM">Medium</option>
-                          <option value="HIGH">High</option>
-                        </select>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button type="submit" className="btn-primary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Save</button>
-                        <button type="button" onClick={() => setEditingTaskId(null)} className="btn-secondary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Cancel</button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <h3>{task.name}</h3>
-                      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#999' }}>Created: {new Date(task.createdAt).toLocaleDateString()}</p>
-                      <p>{task.description || 'No description'}</p>
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                        <span className="status-badge">{task.status.replace('_', ' ')}</span>
-                        <span className="status-badge" style={{ background: task.priority === 'HIGH' ? 'var(--danger)' : task.priority === 'MEDIUM' ? 'var(--warning)' : 'var(--primary)' }}>{task.priority}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
-                        <button onClick={() => startEditTask(task)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}>Edit</button>
-                        <button onClick={() => handleDeleteTask(task.id)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>Delete</button>
-                        <Link to={`/projects/${task.projectId}`} style={{ fontSize: '0.85rem', marginLeft: 'auto' }}>View Project</Link>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+        {!loading && !error && viewMode === 'board' && (
+          <KanbanBoard
+            tasks={tasks}
+            onUpdateTaskStatus={handleUpdateTaskStatus}
+            onEditTask={startEditTask}
+            onDeleteTask={handleDeleteTask}
+          />
         )}
 
-        {!loading && !error && tasks.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
-            <button 
-              onClick={() => setPage(p => Math.max(1, p - 1))} 
-              disabled={page === 1}
-              className="btn-secondary"
-            >
-              Previous
-            </button>
-            <span style={{ display: 'flex', alignItems: 'center' }}>
-              Page {page} of {totalPages}
-            </span>
-            <button 
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-              disabled={page === totalPages || totalPages === 0}
-              className="btn-secondary"
-            >
-              Next
-            </button>
-          </div>
+        {!loading && !error && viewMode === 'list' && (
+          <>
+            <div className="stats-grid">
+              {tasks.length === 0 ? (
+                <p>No tasks found.</p>
+              ) : (
+                tasks.map(task => (
+                  <div key={task.id} className="stat-card">
+                    {editingTaskId === task.id ? (
+                      <form onSubmit={(e) => handleEditTaskSubmit(e, task.id)}>
+                        <input type="text" value={editTaskName} onChange={e => setEditTaskName(e.target.value)} required style={{width: '100%', marginBottom: '0.5rem', padding: '0.5rem'}} />
+                        <input type="text" value={editTaskDesc} onChange={e => setEditTaskDesc(e.target.value)} style={{width: '100%', marginBottom: '0.5rem', padding: '0.5rem'}} />
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
+                          <select value={editTaskStatus} onChange={e => setEditTaskStatus(e.target.value)} style={{flex: 1, padding: '0.5rem'}}>
+                            <option value="PENDING">Pending</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="COMPLETED">Completed</option>
+                          </select>
+                          <select value={editTaskPriority} onChange={e => setEditTaskPriority(e.target.value)} style={{flex: 1, padding: '0.5rem'}}>
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HIGH">High</option>
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button type="submit" className="btn-primary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Save</button>
+                          <button type="button" onClick={() => setEditingTaskId(null)} className="btn-secondary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Cancel</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <h3>{task.name}</h3>
+                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#999' }}>Created: {new Date(task.createdAt).toLocaleDateString()}</p>
+                        <p>{task.description || 'No description'}</p>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                          <span className="status-badge">{task.status.replace('_', ' ')}</span>
+                          <span className="status-badge" style={{ background: task.priority === 'HIGH' ? 'var(--danger)' : task.priority === 'MEDIUM' ? 'var(--warning)' : 'var(--primary)' }}>{task.priority}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
+                          <button onClick={() => startEditTask(task)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}>Edit</button>
+                          <button onClick={() => handleDeleteTask(task.id)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>Delete</button>
+                          <Link to={`/projects/${task.projectId}`} style={{ fontSize: '0.85rem', marginLeft: 'auto' }}>View Project</Link>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {tasks.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                  disabled={page === 1}
+                  className="btn-secondary"
+                >
+                  Previous
+                </button>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  Page {page} of {totalPages}
+                </span>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={page === totalPages || totalPages === 0}
+                  className="btn-secondary"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
   );
 };
+

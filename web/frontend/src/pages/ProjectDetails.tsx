@@ -2,18 +2,35 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Sidebar } from '../components/Sidebar';
+import { KanbanBoard } from '../components/KanbanBoard';
+import { ActivityTimeline } from '../components/ActivityTimeline';
+import { LayoutGrid, List, CheckSquare, History } from 'lucide-react';
 import './Dashboard.css';
 
-import type { Task } from '@planora/shared';
+import type { Task, Project, TaskViewMode, TaskStatus } from '@planora/shared';
 
 export const ProjectDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
+  // Tab: 'tasks' or 'activity'
+  const [activeTab, setActiveTab] = useState<'tasks' | 'activity'>('tasks');
+
+  // View mode for tasks
+  const [viewMode, setViewMode] = useState<TaskViewMode>(() => {
+    const saved = localStorage.getItem('planora_task_view_mode');
+    return saved === 'board' ? 'board' : 'list';
+  });
+
+  const handleViewModeChange = (mode: TaskViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('planora_task_view_mode', mode);
+  };
+
   // Search & Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -55,7 +72,7 @@ export const ProjectDetails = () => {
       setProject(projRes.data.data.project);
       setTasks(tasksRes.data.data.tasks);
       setTotalPages(tasksRes.data.data.pagination?.totalPages || 1);
-    } catch (err) {
+    } catch {
       alert('Failed to load project details');
       navigate('/projects');
     } finally {
@@ -77,8 +94,21 @@ export const ProjectDetails = () => {
         setTaskDesc('');
         setShowTaskForm(false);
       }
-    } catch (err) {
+    } catch {
       alert('Failed to create task');
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus): Promise<boolean> => {
+    try {
+      const res = await api.put(`/tasks/${taskId}`, { status: newStatus });
+      if (res.data.success) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? res.data.data.task : t)));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   };
 
@@ -86,8 +116,8 @@ export const ProjectDetails = () => {
     const newStatus = currentStatus === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
     try {
       await api.put(`/tasks/${taskId}`, { status: newStatus });
-      setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-    } catch (err) {
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus as TaskStatus } : t));
+    } catch {
       alert('Failed to update task');
     }
   };
@@ -97,7 +127,7 @@ export const ProjectDetails = () => {
     try {
       await api.delete(`/tasks/${taskId}`);
       setTasks(tasks.filter(t => t.id !== taskId));
-    } catch (err) {
+    } catch {
       alert('Failed to delete task');
     }
   };
@@ -123,12 +153,13 @@ export const ProjectDetails = () => {
         setTasks(tasks.map(t => t.id === taskId ? res.data.data.task : t));
         setEditingTaskId(null);
       }
-    } catch (err) {
+    } catch {
       alert('Failed to update task');
     }
   };
 
   if (loading) return <div>Loading...</div>;
+  if (!project) return <div>Project not found</div>;
 
   return (
     <div className="layout">
@@ -150,160 +181,227 @@ export const ProjectDetails = () => {
           </div>
         </header>
 
-        <section style={{ marginTop: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2>Tasks</h2>
-            <button onClick={() => setShowTaskForm(!showTaskForm)} className="btn-primary" style={{ width: 'auto', marginTop: 0 }}>
-              {showTaskForm ? 'Cancel' : 'Add Task'}
-            </button>
-          </div>
+        {/* Temporary visual verification marker requested by user */}
+        <div data-testid="activity-tabs-marker" style={{ backgroundColor: '#ff0055', color: '#ffffff', padding: '12px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '16px', marginBottom: '16px', textAlign: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
+          ACTIVITY TABS RENDERED
+        </div>
 
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-            <input 
-              type="text" 
-              placeholder="Search tasks..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', flex: 1 }}
-            />
-            <select 
-              value={statusFilter} 
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-            >
-              <option value="">All Statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
-            </select>
-            <select 
-              value={priorityFilter} 
-              onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-            >
-              <option value="">All Priorities</option>
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-            </select>
-            <select 
-              value={sortBy} 
-              onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-            >
-              <option value="createdAt">Sort by Date</option>
-              <option value="name">Sort by Name</option>
-              <option value="status">Sort by Status</option>
-              <option value="priority">Sort by Priority</option>
-              <option value="dueDate">Sort by Due Date</option>
-            </select>
-            <select 
-              value={sortOrder} 
-              onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-            >
-              <option value="desc">Descending</option>
-              <option value="asc">Ascending</option>
-            </select>
-          </div>
+        {/* Tab Navigation: Tasks vs Activity */}
+        <div className="tabs-nav" role="tablist" aria-label="Project Sections">
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'tasks' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tasks')}
+            role="tab"
+            aria-selected={activeTab === 'tasks'}
+            data-testid="project-tab-tasks"
+          >
+            <CheckSquare size={16} />
+            <span>Tasks</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'activity' ? 'active' : ''}`}
+            onClick={() => setActiveTab('activity')}
+            role="tab"
+            aria-selected={activeTab === 'activity'}
+            data-testid="project-tab-activity"
+          >
+            <History size={16} />
+            <span>Activity History</span>
+          </button>
+        </div>
 
-          {showTaskForm && (
-            <div className="stat-card" style={{ marginBottom: '1.5rem' }}>
-              <form onSubmit={handleCreateTask}>
-                <div className="form-group">
-                  <label>Task Name</label>
-                  <input type="text" value={taskName} onChange={e => setTaskName(e.target.value)} required />
+        {activeTab === 'activity' ? (
+          <ActivityTimeline projectId={id!} />
+        ) : (
+          <section>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h2>Tasks</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div className="view-toggle-wrap" role="group" aria-label="Task view mode">
+                  <button
+                    type="button"
+                    className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                    onClick={() => handleViewModeChange('list')}
+                    data-testid="project-view-toggle-list"
+                  >
+                    <List size={16} /> List
+                  </button>
+                  <button
+                    type="button"
+                    className={`view-toggle-btn ${viewMode === 'board' ? 'active' : ''}`}
+                    onClick={() => handleViewModeChange('board')}
+                    data-testid="project-view-toggle-board"
+                  >
+                    <LayoutGrid size={16} /> Board
+                  </button>
                 </div>
-                <div className="form-group">
-                  <label>Description</label>
-                  <input type="text" value={taskDesc} onChange={e => setTaskDesc(e.target.value)} />
-                </div>
-                <button type="submit" className="btn-primary">Save Task</button>
-              </form>
+                <button onClick={() => setShowTaskForm(!showTaskForm)} className="btn-primary" style={{ width: 'auto', marginTop: 0 }}>
+                  {showTaskForm ? 'Cancel' : '+ Add Task'}
+                </button>
+              </div>
             </div>
-          )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {tasks.length === 0 ? (
-              <p>No tasks yet.</p>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', flex: 1, minWidth: '200px' }}
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+              >
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+              <select
+                value={priorityFilter}
+                onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}
+                style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+              >
+                <option value="">All Priorities</option>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+                style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+              >
+                <option value="createdAt">Sort by Date</option>
+                <option value="name">Sort by Name</option>
+                <option value="status">Sort by Status</option>
+                <option value="priority">Sort by Priority</option>
+                <option value="dueDate">Sort by Due Date</option>
+              </select>
+              <select
+                value={sortOrder}
+                onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}
+                style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+              >
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
+            </div>
+
+            {showTaskForm && (
+              <div className="stat-card" style={{ marginBottom: '1.5rem' }}>
+                <form onSubmit={handleCreateTask}>
+                  <div className="form-group">
+                    <label>Task Name</label>
+                    <input type="text" value={taskName} onChange={e => setTaskName(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <input type="text" value={taskDesc} onChange={e => setTaskDesc(e.target.value)} />
+                  </div>
+                  <button type="submit" className="btn-primary">Save Task</button>
+                </form>
+              </div>
+            )}
+
+            {viewMode === 'board' ? (
+              <KanbanBoard
+                tasks={tasks}
+                onUpdateTaskStatus={handleUpdateTaskStatus}
+                onEditTask={startEditTask}
+                onDeleteTask={handleDeleteTask}
+              />
             ) : (
-              tasks.map(task => (
-                <div key={task.id} className="stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  {editingTaskId === task.id ? (
-                    <form onSubmit={(e) => handleEditTaskSubmit(e, task.id)} style={{ width: '100%' }}>
-                      <input type="text" value={editTaskName} onChange={e => setEditTaskName(e.target.value)} required style={{width: '100%', marginBottom: '0.5rem', padding: '0.5rem'}} />
-                      <input type="text" value={editTaskDesc} onChange={e => setEditTaskDesc(e.target.value)} style={{width: '100%', marginBottom: '0.5rem', padding: '0.5rem'}} />
-                      <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
-                        <select value={editTaskStatus} onChange={e => setEditTaskStatus(e.target.value)} style={{flex: 1, padding: '0.5rem'}}>
-                          <option value="PENDING">Pending</option>
-                          <option value="IN_PROGRESS">In Progress</option>
-                          <option value="COMPLETED">Completed</option>
-                        </select>
-                        <select value={editTaskPriority} onChange={e => setEditTaskPriority(e.target.value)} style={{flex: 1, padding: '0.5rem'}}>
-                          <option value="LOW">Low</option>
-                          <option value="MEDIUM">Medium</option>
-                          <option value="HIGH">High</option>
-                        </select>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button type="submit" className="btn-primary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Save</button>
-                        <button type="button" onClick={() => setEditingTaskId(null)} className="btn-secondary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Cancel</button>
-                      </div>
-                    </form>
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {tasks.length === 0 ? (
+                    <p>No tasks yet.</p>
                   ) : (
-                    <>
-                      <div>
-                        <h4 style={{ margin: '0 0 0.5rem 0', textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none' }}>
-                          {task.name}
-                        </h4>
-                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#999' }}>Created: {new Date(task.createdAt).toLocaleDateString()}</p>
-                        <p style={{ margin: '0', fontSize: '0.9rem', color: '#7f8c8d' }}>{task.description}</p>
-                        <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-                          <span className="status-badge">{task.status}</span>
-                          <span className="status-badge" style={{ background: task.priority === 'HIGH' ? 'var(--danger)' : task.priority === 'MEDIUM' ? 'var(--warning)' : 'var(--primary)' }}>{task.priority}</span>
-                        </div>
+                    tasks.map(task => (
+                      <div key={task.id} className="stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        {editingTaskId === task.id ? (
+                          <form onSubmit={(e) => handleEditTaskSubmit(e, task.id)} style={{ width: '100%' }}>
+                            <input type="text" value={editTaskName} onChange={e => setEditTaskName(e.target.value)} required style={{ width: '100%', marginBottom: '0.5rem', padding: '0.5rem' }} />
+                            <input type="text" value={editTaskDesc} onChange={e => setEditTaskDesc(e.target.value)} style={{ width: '100%', marginBottom: '0.5rem', padding: '0.5rem' }} />
+                            <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
+                              <select value={editTaskStatus} onChange={e => setEditTaskStatus(e.target.value)} style={{ flex: 1, padding: '0.5rem' }}>
+                                <option value="PENDING">Pending</option>
+                                <option value="IN_PROGRESS">In Progress</option>
+                                <option value="COMPLETED">Completed</option>
+                              </select>
+                              <select value={editTaskPriority} onChange={e => setEditTaskPriority(e.target.value)} style={{ flex: 1, padding: '0.5rem' }}>
+                                <option value="LOW">Low</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="HIGH">High</option>
+                              </select>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button type="submit" className="btn-primary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Save</button>
+                              <button type="button" onClick={() => setEditingTaskId(null)} className="btn-secondary" style={{ marginTop: 0, flex: 1, padding: '0.5rem' }}>Cancel</button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <div>
+                              <h4 style={{ margin: '0 0 0.5rem 0', textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none' }}>
+                                {task.name}
+                              </h4>
+                              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#999' }}>Created: {new Date(task.createdAt).toLocaleDateString()}</p>
+                              <p style={{ margin: '0', fontSize: '0.9rem', color: '#7f8c8d' }}>{task.description}</p>
+                              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                                <span className="status-badge">{task.status}</span>
+                                <span className="status-badge" style={{ background: task.priority === 'HIGH' ? 'var(--danger)' : task.priority === 'MEDIUM' ? 'var(--warning)' : 'var(--primary)' }}>{task.priority}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button onClick={() => toggleTaskStatus(task.id, task.status)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem' }}>
+                                {task.status === 'COMPLETED' ? 'Mark Pending' : 'Complete'}
+                              </button>
+                              <button onClick={() => startEditTask(task)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem' }}>
+                                Edit
+                              </button>
+                              <button onClick={() => handleDeleteTask(task.id)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+                                Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button onClick={() => toggleTaskStatus(task.id, task.status)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem' }}>
-                          {task.status === 'COMPLETED' ? 'Mark Pending' : 'Complete'}
-                        </button>
-                        <button onClick={() => startEditTask(task)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem' }}>
-                          Edit
-                        </button>
-                        <button onClick={() => handleDeleteTask(task.id)} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
-                          Delete
-                        </button>
-                      </div>
-                    </>
+                    ))
                   )}
                 </div>
-              ))
-            )}
-          </div>
 
-          {!loading && tasks.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
-              <button 
-                onClick={() => setPage(p => Math.max(1, p - 1))} 
-                disabled={page === 1}
-                className="btn-secondary"
-              >
-                Previous
-              </button>
-              <span style={{ display: 'flex', alignItems: 'center' }}>
-                Page {page} of {totalPages}
-              </span>
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-                disabled={page === totalPages || totalPages === 0}
-                className="btn-secondary"
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </section>
+                {tasks.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="btn-secondary"
+                    >
+                      Previous
+                    </button>
+                    <span style={{ display: 'flex', alignItems: 'center' }}>
+                      Page {page} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages || totalPages === 0}
+                      className="btn-secondary"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );
 };
+
